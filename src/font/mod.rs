@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pub(crate) mod fallback;
 
-use fontdb::FaceInfo;
 // re-export ttf_parser
 pub use ttf_parser;
 
-use core::{borrow::BorrowMut, fmt};
+use core::fmt;
 
 use alloc::sync::Arc;
 #[cfg(not(feature = "std"))]

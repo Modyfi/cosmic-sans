@@ -26,8 +26,8 @@ mod platform;
 #[path = "windows.rs"]
 mod platform;
 
-#[cfg(not(feature = "warn_on_missing_glyphs"))]
-use log::debug as missing_warn;
+// #[cfg(not(feature = "warn_on_missing_glyphs"))]
+// use log::debug as missing_warn;
 #[cfg(feature = "warn_on_missing_glyphs")]
 use log::warn as missing_warn;
 
@@ -79,45 +79,45 @@ impl<'a> FontFallbackIter<'a> {
         }
     }
 
-    pub fn check_missing(&mut self, word: &str) {
-        if self.end {
-            missing_warn!(
-                "Failed to find any fallback for {:?} locale '{}': '{}'",
-                self.scripts,
-                self.font_system.locale(),
-                word
-            );
-        } else if self.other_i > 0 {
-            missing_warn!(
-                "Failed to find preset fallback for {:?} locale '{}', used '{}': '{}'",
-                self.scripts,
-                self.font_system.locale(),
-                self.face_name(self.font_match_keys[self.other_i - 1].id),
-                word
-            );
-        } else if !self.scripts.is_empty() && self.common_i > 0 {
-            let family = common_fallback()[self.common_i - 1];
-            missing_warn!(
-                "Failed to find script fallback for {:?} locale '{}', used '{}': '{}'",
-                self.scripts,
-                self.font_system.locale(),
-                family,
-                word
-            );
-        }
-    }
+    // pub fn check_missing(&mut self, word: &str) {
+    //     if self.end {
+    //         missing_warn!(
+    //             "Failed to find any fallback for {:?} locale '{}': '{}'",
+    //             self.scripts,
+    //             self.font_system.locale(),
+    //             word
+    //         );
+    //     } else if self.other_i > 0 {
+    //         missing_warn!(
+    //             "Failed to find preset fallback for {:?} locale '{}', used '{}': '{}'",
+    //             self.scripts,
+    //             self.font_system.locale(),
+    //             self.face_name(self.font_match_keys[self.other_i - 1].id),
+    //             word
+    //         );
+    //     } else if !self.scripts.is_empty() && self.common_i > 0 {
+    //         let family = common_fallback()[self.common_i - 1];
+    //         missing_warn!(
+    //             "Failed to find script fallback for {:?} locale '{}', used '{}': '{}'",
+    //             self.scripts,
+    //             self.font_system.locale(),
+    //             family,
+    //             word
+    //         );
+    //     }
+    // }
 
-    pub fn face_name(&self, id: fontdb::ID) -> &str {
-        if let Some(face) = self.font_system.db().face(id) {
-            if let Some((name, _)) = face.families.first() {
-                name
-            } else {
-                &face.post_script_name
-            }
-        } else {
-            "invalid font id"
-        }
-    }
+    // pub fn face_name(&self, id: fontdb::ID) -> &str {
+    //     if let Some(face) = self.font_system.db().face(id) {
+    //         if let Some((name, _)) = face.families.first() {
+    //             name
+    //         } else {
+    //             &face.post_script_name
+    //         }
+    //     } else {
+    //         "invalid font id"
+    //     }
+    // }
 
     pub fn shape_plan_cache(&mut self) -> &mut ShapePlanCache {
         self.font_system.shape_plan_cache()
