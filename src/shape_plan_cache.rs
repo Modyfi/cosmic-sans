@@ -1,17 +1,36 @@
+use core::hash::{Hash, Hasher};
 #[cfg(not(feature = "std"))]
 use hashbrown::hash_map::Entry;
+use ordered_float::OrderedFloat;
 #[cfg(feature = "std")]
 use std::collections::hash_map::Entry;
+use std::hash::DefaultHasher;
 
 use crate::{Font, HashMap};
 
 /// Key for caching shape plans.
 #[derive(Debug, Hash, PartialEq, Eq)]
 struct ShapePlanKey {
-    font_id: fontdb::ID,
-    direction: rustybuzz::Direction,
-    script: rustybuzz::Script,
-    language: Option<rustybuzz::Language>,
+    shape_plan_hash: u64,
+}
+
+impl ShapePlanKey {
+    pub fn new(font: &Font, buffer: &rustybuzz::UnicodeBuffer) -> Self {
+        let mut hasher = DefaultHasher::new();
+
+        font.id().hash(&mut hasher);
+        buffer.direction().hash(&mut hasher);
+        buffer.script().hash(&mut hasher);
+        buffer.language().hash(&mut hasher);
+        for var in font.variations() {
+            var.tag.hash(&mut hasher);
+            OrderedFloat(var.value).hash(&mut hasher);
+        }
+
+        Self {
+            shape_plan_hash: hasher.finish(),
+        }
+    }
 }
 
 /// A helper structure for caching rustybuzz shape plans.
@@ -20,26 +39,16 @@ pub struct ShapePlanCache(HashMap<ShapePlanKey, rustybuzz::ShapePlan>);
 
 impl ShapePlanCache {
     pub fn get(&mut self, font: &Font, buffer: &rustybuzz::UnicodeBuffer) -> &rustybuzz::ShapePlan {
-        let key = ShapePlanKey {
-            font_id: font.id(),
-            direction: buffer.direction(),
-            script: buffer.script(),
-            language: buffer.language(),
-        };
+        let key = ShapePlanKey::new(font, buffer);
+
         match self.0.entry(key) {
             Entry::Occupied(occ) => occ.into_mut(),
             Entry::Vacant(vac) => {
-                let ShapePlanKey {
-                    direction,
-                    script,
-                    language,
-                    ..
-                } = vac.key();
                 let plan = rustybuzz::ShapePlan::new(
                     font.rustybuzz(),
-                    *direction,
-                    Some(*script),
-                    language.as_ref(),
+                    buffer.direction(),
+                    Some(buffer.script()),
+                    buffer.language().as_ref(),
                     &[],
                 );
                 vac.insert(plan)

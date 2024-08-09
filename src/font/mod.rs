@@ -35,6 +35,7 @@ pub struct Font {
     monospace_em_width: Option<f32>,
     scripts: Vec<[u8; 4]>,
     unicode_codepoints: Vec<u32>,
+    variations: Vec<Variation>,
 }
 
 impl fmt::Debug for Font {
@@ -71,8 +72,13 @@ impl Font {
     }
 
     pub fn set_variations(&mut self, variations: &[Variation]) {
+        self.variations = variations.to_vec();
         self.rustybuzz
             .with_dependent_mut(|_, v| v.set_variations(variations));
+    }
+
+    pub fn variations(&self) -> &[Variation] {
+        &self.variations
     }
 
     #[cfg(feature = "swash")]
@@ -164,6 +170,7 @@ impl Font {
             })
             .ok()?,
             data,
+            variations: vec![],
         })
     }
 
@@ -243,6 +250,7 @@ impl Font {
             })
             .ok()?,
             data,
+            variations: vec![],
         })
     }
 }

@@ -137,6 +137,7 @@ fn shape_fallback(
 
     let shape_plan = shape_plan_cache.get(font, &buffer);
     let glyph_buffer = rustybuzz::shape_with_plan(font.rustybuzz(), shape_plan, buffer);
+
     let glyph_infos = glyph_buffer.glyph_infos();
     let glyph_positions = glyph_buffer.glyph_positions();
 
