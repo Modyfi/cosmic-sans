@@ -12,7 +12,7 @@ use rustybuzz::{GlyphInfo, GlyphPosition};
 use unicode_script::{Script, UnicodeScript};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::fallback::FontFallbackIter;
+use crate::fallback::{FontFallbackIter, SimpleFontFallbackIter};
 use crate::{
     math, Align, AttrsList, CacheKeyFlags, Color, Font, FontSystem, LayoutGlyph, LayoutLine,
     Metrics, ShapePlanCache, Wrap,
@@ -297,32 +297,36 @@ fn shape_run(
 
     let attrs = attrs_list.get_span(start_run);
 
+    let fonts = font_system.get_font_matches(attrs);
+
+    //
+    // MODYFI: We do not need the complex font fallback iterator that
+    // cosmic text provides. It does a lot of stuff that ends up being
+    // too hard to control in our simple context.
+    //
+    let mut font_iter = SimpleFontFallbackIter::new(font_system, &fonts);
+
     // TODO(MODYFI): Make this work in a fallback context
-    let Some(mut font) = font_system.get_font_owned() else {
+    let Some(first_font) = font_iter.next() else {
         log::warn!("Could not find any font to use while shaping.");
         return;
     };
 
-    if let Some(v) = attrs.variations_opt {
-        font.set_variations(v);
+    {
+        let mut font_write_guard = first_font.write().unwrap();
+        if let Some(v) = attrs.variations_opt {
+            font_write_guard.set_variations(v);
+        }
     }
 
-    let fonts = font_system.get_font_matches(attrs);
+    let first_font_read_guard = first_font.read().unwrap();
+    let glyph_start = glyphs.len();
 
-    let default_families = [&attrs.family];
-    let mut font_iter = FontFallbackIter::new(
-        font_system,
-        &fonts,
-        &default_families,
-        &scripts,
-        &line[start_run..end_run],
-    );
-
-    let _missing = shape_fallback(
+    let mut missing = shape_fallback(
         scratch,
         glyphs,
         font_iter.shape_plan_cache(),
-        &font,
+        &first_font_read_guard,
         line,
         attrs_list,
         start_run,
@@ -331,77 +335,86 @@ fn shape_run(
     );
 
     //TODO: improve performance!
-    // while !missing.is_empty() {
-    //     let font = match font_iter.next() {
-    //         Some(some) => some,
-    //         None => break,
-    //     };
+    while !missing.is_empty() {
+        let font = match font_iter.next() {
+            Some(some) => some,
+            None => break,
+        };
 
-    //     let mut fb_glyphs = Vec::new();
-    //     let fb_missing = shape_fallback(
-    //         scratch,
-    //         &mut fb_glyphs,
-    //         font_iter.shape_plan_cache(),
-    //         &font,
-    //         line,
-    //         attrs_list,
-    //         start_run,
-    //         end_run,
-    //         span_rtl,
-    //     );
+        {
+            let mut font_write_guard = font.write().unwrap();
+            if let Some(v) = attrs.variations_opt {
+                font_write_guard.set_variations(v);
+            }
+        }
 
-    //     // Insert all matching glyphs
-    //     let mut fb_i = 0;
-    //     while fb_i < fb_glyphs.len() {
-    //         let start = fb_glyphs[fb_i].start;
-    //         let end = fb_glyphs[fb_i].end;
+        let font = font.read().unwrap();
 
-    //         // Skip clusters that are not missing, or where the fallback font is missing
-    //         if !missing.contains(&start) || fb_missing.contains(&start) {
-    //             fb_i += 1;
-    //             continue;
-    //         }
+        let mut fb_glyphs = Vec::new();
+        let fb_missing = shape_fallback(
+            scratch,
+            &mut fb_glyphs,
+            font_iter.shape_plan_cache(),
+            &font,
+            line,
+            attrs_list,
+            start_run,
+            end_run,
+            span_rtl,
+        );
 
-    //         let mut missing_i = 0;
-    //         while missing_i < missing.len() {
-    //             if missing[missing_i] >= start && missing[missing_i] < end {
-    //                 // println!("No longer missing {}", missing[missing_i]);
-    //                 missing.remove(missing_i);
-    //             } else {
-    //                 missing_i += 1;
-    //             }
-    //         }
+        // Insert all matching glyphs
+        let mut fb_i = 0;
+        while fb_i < fb_glyphs.len() {
+            let start = fb_glyphs[fb_i].start;
+            let end = fb_glyphs[fb_i].end;
 
-    //         // Find prior glyphs
-    //         let mut i = glyph_start;
-    //         while i < glyphs.len() {
-    //             if glyphs[i].start >= start && glyphs[i].end <= end {
-    //                 break;
-    //             } else {
-    //                 i += 1;
-    //             }
-    //         }
+            // Skip clusters that are not missing, or where the fallback font is missing
+            if !missing.contains(&start) || fb_missing.contains(&start) {
+                fb_i += 1;
+                continue;
+            }
 
-    //         // Remove prior glyphs
-    //         while i < glyphs.len() {
-    //             if glyphs[i].start >= start && glyphs[i].end <= end {
-    //                 let _glyph = glyphs.remove(i);
-    //             } else {
-    //                 break;
-    //             }
-    //         }
+            let mut missing_i = 0;
+            while missing_i < missing.len() {
+                if missing[missing_i] >= start && missing[missing_i] < end {
+                    // println!("No longer missing {}", missing[missing_i]);
+                    missing.remove(missing_i);
+                } else {
+                    missing_i += 1;
+                }
+            }
 
-    //         while fb_i < fb_glyphs.len() {
-    //             if fb_glyphs[fb_i].start >= start && fb_glyphs[fb_i].end <= end {
-    //                 let fb_glyph = fb_glyphs.remove(fb_i);
-    //                 glyphs.insert(i, fb_glyph);
-    //                 i += 1;
-    //             } else {
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
+            // Find prior glyphs
+            let mut i = glyph_start;
+            while i < glyphs.len() {
+                if glyphs[i].start >= start && glyphs[i].end <= end {
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+
+            // Remove prior glyphs
+            while i < glyphs.len() {
+                if glyphs[i].start >= start && glyphs[i].end <= end {
+                    let _glyph = glyphs.remove(i);
+                } else {
+                    break;
+                }
+            }
+
+            while fb_i < fb_glyphs.len() {
+                if fb_glyphs[fb_i].start >= start && fb_glyphs[fb_i].end <= end {
+                    let fb_glyph = fb_glyphs.remove(fb_i);
+                    glyphs.insert(i, fb_glyph);
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
 
     // Debug missing font fallbacks
     // font_iter.check_missing(&line[start_run..end_run]);
@@ -492,6 +505,8 @@ fn shape_skip(
     let mut font_iter = FontFallbackIter::new(font_system, &fonts, &default_families, &[], "");
 
     let font = font_iter.next().expect("no default font found");
+    let font = font.read().unwrap();
+
     let font_id = font.id();
     let font_monospace_em_width = font.monospace_em_width();
     let font = font.as_swash();

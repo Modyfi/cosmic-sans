@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
+use std::sync::RwLock;
+
 use alloc::collections::BTreeSet;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -40,6 +42,45 @@ struct MonospaceFallbackInfo {
     codepoint_non_matches: Option<usize>,
     font_weight: u16,
     id: fontdb::ID,
+}
+
+// MODYFI: We do not need the complex font fallback iterator that
+// cosmic text provides. It does a lot of stuff that ends up being
+// too hard to control in our simple context. All we want is to try
+// all the loaded fonts in no particular order.
+pub struct SimpleFontFallbackIter<'a> {
+    font_system: &'a mut FontSystem,
+    font_match_keys: &'a [FontMatchKey],
+    i: usize,
+}
+
+impl<'a> SimpleFontFallbackIter<'a> {
+    pub fn new(font_system: &'a mut FontSystem, font_match_keys: &'a [FontMatchKey]) -> Self {
+        Self {
+            font_system,
+            font_match_keys,
+            i: 0,
+        }
+    }
+
+    pub fn shape_plan_cache(&mut self) -> &mut ShapePlanCache {
+        self.font_system.shape_plan_cache()
+    }
+}
+
+impl<'a> Iterator for SimpleFontFallbackIter<'a> {
+    type Item = Arc<RwLock<Font>>;
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.i < self.font_match_keys.len() {
+            let id = self.font_match_keys[self.i].id;
+            self.i += 1;
+            if let Some(font) = self.font_system.get_font(id) {
+                return Some(font);
+            }
+        }
+
+        None
+    }
 }
 
 pub struct FontFallbackIter<'a> {
@@ -119,9 +160,9 @@ impl<'a> FontFallbackIter<'a> {
     //     }
     // }
 
-    pub fn shape_plan_cache(&mut self) -> &mut ShapePlanCache {
-        self.font_system.shape_plan_cache()
-    }
+    // pub fn shape_plan_cache(&mut self) -> &mut ShapePlanCache {
+    //     self.font_system.shape_plan_cache()
+    // }
 
     fn face_contains_family(&self, id: fontdb::ID, family_name: &str) -> bool {
         if let Some(face) = self.font_system.db().face(id) {
@@ -143,7 +184,7 @@ impl<'a> FontFallbackIter<'a> {
 }
 
 impl<'a> Iterator for FontFallbackIter<'a> {
-    type Item = Arc<Font>;
+    type Item = Arc<RwLock<Font>>;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(fallback_info) = self.monospace_fallbacks.pop_first() {
             if let Some(font) = self.font_system.get_font(fallback_info.id) {

@@ -25,6 +25,8 @@ fn swash_image(
         }
     };
 
+    let font = font.read().unwrap();
+
     // Build the scaler
     let mut scaler = context
         .builder(font.as_swash())
@@ -75,6 +77,8 @@ fn swash_outline_commands(
             return None;
         }
     };
+
+    let font = font.read().unwrap();
 
     // Build the scaler
     let mut scaler = context

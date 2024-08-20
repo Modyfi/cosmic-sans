@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt;
 use core::ops::{Deref, DerefMut};
+use std::sync::RwLock;
 
 // re-export fontdb and rustybuzz
 pub use fontdb;
@@ -84,7 +85,7 @@ pub struct FontSystem {
     db: fontdb::Database,
 
     /// Cache for loaded fonts from the database.
-    font_cache: HashMap<fontdb::ID, Option<Arc<Font>>>,
+    font_cache: HashMap<fontdb::ID, Option<Arc<RwLock<Font>>>>,
 
     /// Sorted unique ID's of all Monospace fonts in DB
     monospace_font_ids: Vec<fontdb::ID>,
@@ -175,12 +176,14 @@ impl FontSystem {
         ret.cache_fonts(cloned_monospace_font_ids.clone());
         cloned_monospace_font_ids.into_iter().for_each(|id| {
             if let Some(font) = ret.get_font(id) {
-                font.scripts().iter().copied().for_each(|script| {
-                    ret.per_script_monospace_font_ids
-                        .entry(script)
-                        .or_default()
-                        .push(font.id);
-                });
+                if let Ok(font) = font.read() {
+                    font.scripts().iter().copied().for_each(|script| {
+                        ret.per_script_monospace_font_ids
+                            .entry(script)
+                            .or_default()
+                            .push(font.id);
+                    });
+                }
             }
         });
         ret
@@ -239,7 +242,7 @@ impl FontSystem {
 
         fonts
             .map(|id| match Font::new(&self.db, *id) {
-                Some(font) => Some(Arc::new(font)),
+                Some(font) => Some(Arc::new(RwLock::new(font))),
                 None => {
                     log::warn!(
                         "failed to load font '{}'",
@@ -248,20 +251,17 @@ impl FontSystem {
                     None
                 }
             })
-            .collect::<Vec<Option<Arc<Font>>>>()
+            .collect::<Vec<Option<Arc<RwLock<Font>>>>>()
             .into_iter()
             .flatten()
             .for_each(|font| {
-                self.font_cache.insert(font.id, Some(font));
+                let font_id = font.read().unwrap().id;
+                self.font_cache.insert(font_id, Some(font));
             });
     }
 
-    pub fn get_font_owned(&mut self) -> Option<Font> {
-        Font::new_first(&self.db)
-    }
-
     /// Get a font by its ID.
-    pub fn get_font(&mut self, id: fontdb::ID) -> Option<Arc<Font>> {
+    pub fn get_font(&mut self, id: fontdb::ID) -> Option<Arc<RwLock<Font>>> {
         self.font_cache
             .entry(id)
             .or_insert_with(|| {
@@ -270,7 +270,7 @@ impl FontSystem {
                     self.db.make_shared_face_data(id);
                 }
                 match Font::new(&self.db, id) {
-                    Some(font) => Some(Arc::new(font)),
+                    Some(font) => Some(Arc::new(RwLock::new(font))),
                     None => {
                         log::warn!(
                             "failed to load font '{}'",
@@ -307,6 +307,7 @@ impl FontSystem {
         word: &str,
     ) -> Option<usize> {
         self.get_font(id).map(|font| {
+            let font = font.read().unwrap();
             let code_points = font.unicode_codepoints();
             let cache = self
                 .font_codepoint_support_info_cache
