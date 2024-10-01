@@ -109,6 +109,7 @@ impl FamilyOwned {
 pub struct CacheMetrics {
     font_size_bits: u32,
     line_height_bits: u32,
+    letter_spacing_bits: u32,
 }
 
 impl From<Metrics> for CacheMetrics {
@@ -116,6 +117,7 @@ impl From<Metrics> for CacheMetrics {
         Self {
             font_size_bits: metrics.font_size.to_bits(),
             line_height_bits: metrics.line_height.to_bits(),
+            letter_spacing_bits: metrics.letter_spacing.to_bits(),
         }
     }
 }
@@ -125,6 +127,7 @@ impl From<CacheMetrics> for Metrics {
         Self {
             font_size: f32::from_bits(metrics.font_size_bits),
             line_height: f32::from_bits(metrics.line_height_bits),
+            letter_spacing: f32::from_bits(metrics.letter_spacing_bits),
         }
     }
 }
