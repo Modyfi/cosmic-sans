@@ -8,7 +8,7 @@ fn wrap_word_fallback() {
         FontSystem::new_with_locale_and_db("en-US".into(), fontdb::Database::new());
     let font = std::fs::read("fonts/Inter-Regular.ttf").unwrap();
     font_system.db_mut().load_font_data(font);
-    let metrics = Metrics::new(14.0, 20.0);
+    let metrics = Metrics::new(14.0, 20.0, 0.0);
 
     let mut buffer = Buffer::new(&mut font_system, metrics);
 

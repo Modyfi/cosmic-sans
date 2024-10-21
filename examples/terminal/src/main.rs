@@ -17,7 +17,7 @@ fn main() {
     // Text metrics indicate the font size and line height of a buffer
     const FONT_SIZE: f32 = 14.0;
     const LINE_HEIGHT: f32 = FONT_SIZE * 1.2;
-    let metrics = Metrics::new(FONT_SIZE, LINE_HEIGHT);
+    let metrics = Metrics::new(FONT_SIZE, LINE_HEIGHT, 0.0);
 
     // A Buffer provides shaping and layout for a UTF-8 string, create one per text widget
     let mut buffer = Buffer::new(&mut font_system, metrics);

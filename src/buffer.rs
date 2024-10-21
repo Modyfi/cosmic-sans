@@ -167,26 +167,26 @@ pub struct Metrics {
     pub font_size: f32,
     /// Line height in pixels
     pub line_height: f32,
-    /// Letter spacing in pixels
-    pub letter_spacing: f32,
+    /// Tracking in pixels
+    pub tracking: f32,
 }
 
 impl Metrics {
     /// Create metrics with given font size and line height
-    pub const fn new(font_size: f32, line_height: f32, letter_spacing: f32) -> Self {
+    pub const fn new(font_size: f32, line_height: f32, tracking: f32) -> Self {
         Self {
             font_size,
             line_height,
-            letter_spacing,
+            tracking,
         }
     }
 
-    /// Create metrics with given font size and calculate line height using relative scale
-    pub fn relative(font_size: f32, line_height_scale: f32, letter_spacing: f32) -> Self {
+    /// Create metrics with given font size and calculate line height and tracking using relative scale
+    pub fn relative(font_size: f32, line_height_scale: f32, tracking_scale: f32) -> Self {
         Self {
             font_size,
             line_height: font_size * line_height_scale,
-            letter_spacing,
+            tracking: font_size * tracking_scale,
         }
     }
 
@@ -195,7 +195,7 @@ impl Metrics {
         Self {
             font_size: self.font_size * scale,
             line_height: self.line_height * scale,
-            letter_spacing: self.letter_spacing * scale,
+            tracking: self.tracking * scale,
         }
     }
 }
@@ -303,7 +303,7 @@ impl Buffer {
                     &mut self.scratch,
                     font_system,
                     self.metrics.font_size,
-                    self.metrics.letter_spacing,
+                    self.metrics.tracking,
                     self.width_opt,
                     self.wrap,
                     self.monospace_width,
@@ -543,7 +543,7 @@ impl Buffer {
             &mut self.scratch,
             font_system,
             self.metrics.font_size,
-            self.metrics.letter_spacing,
+            self.metrics.tracking,
             self.width_opt,
             self.wrap,
             self.monospace_width,

@@ -31,12 +31,12 @@ fn main() {
 
     let scrollbar_width = 12.0;
     let font_sizes = [
-        Metrics::new(10.0, 14.0), // Caption
-        Metrics::new(14.0, 20.0), // Body
-        Metrics::new(20.0, 28.0), // Title 4
-        Metrics::new(24.0, 32.0), // Title 3
-        Metrics::new(28.0, 36.0), // Title 2
-        Metrics::new(32.0, 44.0), // Title 1
+        Metrics::new(10.0, 14.0, 0.0), // Caption
+        Metrics::new(14.0, 20.0, 0.0), // Body
+        Metrics::new(20.0, 28.0, 0.0), // Title 4
+        Metrics::new(24.0, 32.0, 0.0), // Title 3
+        Metrics::new(28.0, 36.0, 0.0), // Title 2
+        Metrics::new(32.0, 44.0, 0.0), // Title 1
     ];
     let font_size_default = 1; // Body
     let mut font_size_i = font_size_default;

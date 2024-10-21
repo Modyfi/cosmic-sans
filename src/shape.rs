@@ -575,7 +575,7 @@ impl ShapeGlyph {
         &self,
         font_size: f32,
         line_height_opt: Option<f32>,
-        letter_spacing_opt: Option<f32>,
+        tracking_opt: Option<f32>,
         x: f32,
         y: f32,
         w: f32,
@@ -586,7 +586,7 @@ impl ShapeGlyph {
             end: self.end,
             font_size,
             line_height_opt,
-            letter_spacing_opt,
+            tracking_opt,
             font_id: self.font_id,
             glyph_id: self.glyph_id,
             x,
@@ -604,9 +604,9 @@ impl ShapeGlyph {
 
     /// Get the width of the [`ShapeGlyph`] in pixels, either using the provided font size
     /// or the [`ShapeGlyph::metrics_opt`] override.
-    pub fn width(&self, font_size: f32, letter_spacing: f32) -> f32 {
+    pub fn width(&self, font_size: f32, tracking: f32) -> f32 {
         let font_size = self.metrics_opt.map_or(font_size, |x| x.font_size);
-        font_size * self.x_advance + letter_spacing
+        font_size * self.x_advance + tracking
     }
 }
 
@@ -693,20 +693,13 @@ impl ShapeWord {
     }
 
     /// Get the width of the [`ShapeWord`] in pixels, using the [`ShapeGlyph::width`] function.
-    pub fn width(&self, font_size: f32, letter_spacing: f32) -> f32 {
+    pub fn width(&self, font_size: f32, tracking: f32) -> f32 {
         let mut width = 0.0;
         for glyph in self.glyphs.iter() {
-            width += glyph.width(font_size, letter_spacing);
+            width += glyph.width(font_size, tracking);
         }
 
-        // TODO(MAX): Currently I'm doing this to keep the with of blank
-        // words as their whole advance, but for non-blank words we chop
-        // off the last letter_spacing to make the word width correct??
-        if self.blank {
-            width // + letter_spacing
-        } else {
-            width // - letter_spacing
-        }
+        width
     }
 }
 
@@ -1066,7 +1059,7 @@ impl ShapeLine {
     pub fn layout(
         &self,
         font_size: f32,
-        letter_spacing: f32,
+        tracking: f32,
         width_opt: Option<f32>,
         wrap: Wrap,
         align: Option<Align>,
@@ -1076,7 +1069,7 @@ impl ShapeLine {
         self.layout_to_buffer(
             &mut ShapeBuffer::default(),
             font_size,
-            letter_spacing,
+            tracking,
             width_opt,
             wrap,
             align,
@@ -1090,7 +1083,7 @@ impl ShapeLine {
         &self,
         scratch: &mut ShapeBuffer,
         font_size: f32,
-        letter_spacing: f32,
+        tracking: f32,
         width_opt: Option<f32>,
         wrap: Wrap,
         align: Option<Align>,
@@ -1134,7 +1127,7 @@ impl ShapeLine {
                 let mut word_range_width = 0.;
                 let mut number_of_blanks: u32 = 0;
                 for word in span.words.iter() {
-                    let word_width = word.width(font_size, letter_spacing);
+                    let word_width = word.width(font_size, tracking);
                     word_range_width += word_width;
                     if word.blank {
                         number_of_blanks += 1;
@@ -1160,12 +1153,12 @@ impl ShapeLine {
                     // incongruent directions
                     let mut fitting_start = (span.words.len(), 0);
                     for (i, word) in span.words.iter().enumerate().rev() {
-                        let word_width = word.width(font_size, letter_spacing);
+                        let word_width = word.width(font_size, tracking);
 
                         // Addition in the same order used to compute the final width, so that
                         // relayouts with that width as the `line_width` will produce the same
                         // wrapping results.
-                        if current_visual_line.w + (word_range_width + word_width - letter_spacing)
+                        if current_visual_line.w + (word_range_width + word_width - tracking)
                             <= width_opt.unwrap_or(f32::INFINITY)
                             // Include one blank word over the width limit since it won't be
                             // counted in the final width
@@ -1181,19 +1174,19 @@ impl ShapeLine {
                             continue;
                         } else if wrap == Wrap::Glyph
                             // Make sure that the word is able to fit on it's own line, if not, fall back to Glyph wrapping.
-                            || (wrap == Wrap::WordOrGlyph && word_width - letter_spacing > width_opt.unwrap_or(f32::INFINITY))
+                            || (wrap == Wrap::WordOrGlyph && word_width - tracking > width_opt.unwrap_or(f32::INFINITY))
                         {
                             // Commit the current line so that the word starts on the next line.
                             if word_range_width > 0.
                                 && wrap == Wrap::WordOrGlyph
-                                && word_width - letter_spacing > width_opt.unwrap_or(f32::INFINITY)
+                                && word_width - tracking > width_opt.unwrap_or(f32::INFINITY)
                             {
                                 add_to_visual_line(
                                     &mut current_visual_line,
                                     span_index,
                                     (i + 1, 0),
                                     fitting_start,
-                                    word_range_width - letter_spacing,
+                                    word_range_width - tracking,
                                     number_of_blanks,
                                 );
 
@@ -1207,9 +1200,9 @@ impl ShapeLine {
                             }
 
                             for (glyph_i, glyph) in word.glyphs.iter().enumerate().rev() {
-                                let glyph_width = glyph.width(font_size, letter_spacing);
+                                let glyph_width = glyph.width(font_size, tracking);
                                 if current_visual_line.w
-                                    + (word_range_width + glyph_width - letter_spacing)
+                                    + (word_range_width + glyph_width - tracking)
                                     <= width_opt.unwrap_or(f32::INFINITY)
                                 {
                                     word_range_width += glyph_width;
@@ -1220,7 +1213,7 @@ impl ShapeLine {
                                         span_index,
                                         (i, glyph_i + 1),
                                         fitting_start,
-                                        word_range_width - letter_spacing,
+                                        word_range_width - tracking,
                                         number_of_blanks,
                                     );
                                     visual_lines.push(current_visual_line);
@@ -1249,7 +1242,7 @@ impl ShapeLine {
                                         span_index,
                                         (i + 2, 0),
                                         fitting_start,
-                                        width_before_last_blank - letter_spacing,
+                                        width_before_last_blank - tracking,
                                         number_of_blanks,
                                     );
                                 } else {
@@ -1258,7 +1251,7 @@ impl ShapeLine {
                                         span_index,
                                         (i + 1, 0),
                                         fitting_start,
-                                        word_range_width - letter_spacing,
+                                        word_range_width - tracking,
                                         number_of_blanks,
                                     );
                                 }
@@ -1282,19 +1275,19 @@ impl ShapeLine {
                         span_index,
                         (0, 0),
                         fitting_start,
-                        word_range_width - letter_spacing,
+                        word_range_width - tracking,
                         number_of_blanks,
                     );
                 } else {
                     // congruent direction
                     let mut fitting_start = (0, 0);
                     for (i, word) in span.words.iter().enumerate() {
-                        let word_width = word.width(font_size, letter_spacing);
+                        let word_width = word.width(font_size, tracking);
 
                         //
                         // If the the word can fit on the current visual line
                         //
-                        if current_visual_line.w + (word_range_width + word_width) - letter_spacing
+                        if current_visual_line.w + (word_range_width + word_width) - tracking
                             <= width_opt.unwrap_or(f32::INFINITY)
                             // Include one blank word over the width limit since it won't be
                             // counted in the final width.
@@ -1313,19 +1306,19 @@ impl ShapeLine {
                         //
                         } else if wrap == Wrap::Glyph
                             // Make sure that the word is able to fit on it's own line, if not, fall back to Glyph wrapping.
-                            || (wrap == Wrap::WordOrGlyph && word_width - letter_spacing > width_opt.unwrap_or(f32::INFINITY))
+                            || (wrap == Wrap::WordOrGlyph && word_width - tracking > width_opt.unwrap_or(f32::INFINITY))
                         {
                             // Commit the current line so that the word starts on the next line.
                             if word_range_width > 0.
                                 && wrap == Wrap::WordOrGlyph
-                                && word_width - letter_spacing > width_opt.unwrap_or(f32::INFINITY)
+                                && word_width - tracking > width_opt.unwrap_or(f32::INFINITY)
                             {
                                 add_to_visual_line(
                                     &mut current_visual_line,
                                     span_index,
                                     fitting_start,
                                     (i, 0),
-                                    word_range_width - letter_spacing,
+                                    word_range_width - tracking,
                                     number_of_blanks,
                                 );
 
@@ -1342,11 +1335,10 @@ impl ShapeLine {
                             // For each glyph in a word, make it fit onto visual lines
                             //
                             for (glyph_i, glyph) in word.glyphs.iter().enumerate() {
-                                let glyph_width = glyph.width(font_size, letter_spacing);
+                                let glyph_width = glyph.width(font_size, tracking);
 
                                 // If this glyph can fit on the line without letter spacing
-                                if current_visual_line.w + word_range_width + glyph_width
-                                    - letter_spacing
+                                if current_visual_line.w + word_range_width + glyph_width - tracking
                                     <= width_opt.unwrap_or(f32::INFINITY)
                                 {
                                     // Then include it in the line with letter spacing
@@ -1358,7 +1350,7 @@ impl ShapeLine {
                                         span_index,
                                         fitting_start,
                                         (i, glyph_i),
-                                        word_range_width - letter_spacing,
+                                        word_range_width - tracking,
                                         number_of_blanks,
                                     );
                                     visual_lines.push(current_visual_line);
@@ -1386,7 +1378,7 @@ impl ShapeLine {
                                         span_index,
                                         fitting_start,
                                         (i - 1, 0),
-                                        width_before_last_blank - letter_spacing,
+                                        width_before_last_blank - tracking,
                                         number_of_blanks,
                                     );
                                 } else {
@@ -1395,7 +1387,7 @@ impl ShapeLine {
                                         span_index,
                                         fitting_start,
                                         (i, 0),
-                                        word_range_width - letter_spacing,
+                                        word_range_width - tracking,
                                         number_of_blanks,
                                     );
                                 }
@@ -1420,7 +1412,7 @@ impl ShapeLine {
                         span_index,
                         fitting_start,
                         (span.words.len(), 0),
-                        word_range_width - letter_spacing,
+                        word_range_width - tracking,
                         number_of_blanks,
                     );
                 }
@@ -1557,7 +1549,7 @@ impl ShapeLine {
                                 x -= x_advance; // * glyph_i;
 
                                 if glyph_i > 0.0 {
-                                    x -= letter_spacing;
+                                    x -= tracking;
                                 }
                             }
 
@@ -1566,14 +1558,14 @@ impl ShapeLine {
                             glyphs.push(glyph.layout(
                                 glyph_font_size,
                                 glyph.metrics_opt.map(|x| x.line_height),
-                                glyph.metrics_opt.map(|x| x.letter_spacing),
+                                glyph.metrics_opt.map(|x| x.tracking),
                                 x,
                                 y,
                                 x_advance,
                                 span.level,
                             ));
                             if !self.rtl {
-                                x += x_advance + letter_spacing; // * glyph_i;
+                                x += x_advance + tracking;
                             }
                             y += y_advance;
                             max_ascent = max_ascent.max(glyph_font_size * glyph.ascent);
