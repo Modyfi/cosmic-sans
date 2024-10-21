@@ -62,12 +62,12 @@ fn main() {
     .unwrap();
 
     let font_sizes = [
-        Metrics::new(10.0, 14.0).scale(display_scale), // Caption
-        Metrics::new(14.0, 20.0).scale(display_scale), // Body
-        Metrics::new(20.0, 28.0).scale(display_scale), // Title 4
-        Metrics::new(24.0, 32.0).scale(display_scale), // Title 3
-        Metrics::new(28.0, 36.0).scale(display_scale), // Title 2
-        Metrics::new(32.0, 44.0).scale(display_scale), // Title 1
+        Metrics::new(10.0, 14.0, 0.0).scale(display_scale), // Caption
+        Metrics::new(14.0, 20.0, 0.0).scale(display_scale), // Body
+        Metrics::new(20.0, 28.0, 0.0).scale(display_scale), // Title 4
+        Metrics::new(24.0, 32.0, 0.0).scale(display_scale), // Title 3
+        Metrics::new(28.0, 36.0, 0.0).scale(display_scale), // Title 2
+        Metrics::new(32.0, 44.0, 0.0).scale(display_scale), // Title 1
     ];
     let font_size_default = 1; // Body
 

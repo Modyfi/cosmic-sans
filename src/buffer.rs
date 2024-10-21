@@ -129,11 +129,13 @@ impl<'b> Iterator for LayoutRunIter<'b> {
                 let glyph_height = layout_line.max_ascent + layout_line.max_descent;
                 let centering_offset = (line_height - glyph_height) / 2.0;
                 let line_y = line_top + centering_offset + layout_line.max_ascent;
+
                 if let Some(height) = self.buffer.height_opt {
-                    if line_top + centering_offset > height {
+                    if line_top + layout_line.max_ascent > height {
                         return None;
                     }
                 }
+
                 self.line_top += line_height;
                 if line_y < 0.0 {
                     continue;
@@ -165,30 +167,35 @@ pub struct Metrics {
     pub font_size: f32,
     /// Line height in pixels
     pub line_height: f32,
+    /// Tracking in pixels
+    pub tracking: f32,
 }
 
 impl Metrics {
     /// Create metrics with given font size and line height
-    pub const fn new(font_size: f32, line_height: f32) -> Self {
+    pub const fn new(font_size: f32, line_height: f32, tracking: f32) -> Self {
         Self {
             font_size,
             line_height,
+            tracking,
         }
     }
 
-    /// Create metrics with given font size and calculate line height using relative scale
-    pub fn relative(font_size: f32, line_height_scale: f32) -> Self {
+    /// Create metrics with given font size and calculate line height and tracking using relative scale
+    pub fn relative(font_size: f32, line_height_scale: f32, tracking_scale: f32) -> Self {
         Self {
             font_size,
             line_height: font_size * line_height_scale,
+            tracking: font_size * tracking_scale,
         }
     }
 
-    /// Scale font size and line height
+    /// Scale font size, line height, and letter spacing
     pub fn scale(self, scale: f32) -> Self {
         Self {
             font_size: self.font_size * scale,
             line_height: self.line_height * scale,
+            tracking: self.tracking * scale,
         }
     }
 }
@@ -296,6 +303,7 @@ impl Buffer {
                     &mut self.scratch,
                     font_system,
                     self.metrics.font_size,
+                    self.metrics.tracking,
                     self.width_opt,
                     self.wrap,
                     self.monospace_width,
@@ -535,6 +543,7 @@ impl Buffer {
             &mut self.scratch,
             font_system,
             self.metrics.font_size,
+            self.metrics.tracking,
             self.width_opt,
             self.wrap,
             self.monospace_width,

@@ -26,13 +26,25 @@ fn set_buffer_text<'a>(buffer: &mut BorrowedWithFontSystem<'a, Buffer>) {
     let comic_attrs = attrs.family(Family::Name("Comic Neue"));
 
     let spans: &[(&str, Attrs)] = &[
-        ("Font size 64 ", attrs.metrics(Metrics::relative(64.0, 1.2))),
-        ("Font size 8 ", attrs.metrics(Metrics::relative(8.0, 1.2))),
-        ("Font size 20 ", attrs.metrics(Metrics::relative(20.0, 1.2))),
-        ("Font size 14 ", attrs.metrics(Metrics::relative(14.0, 1.2))),
+        (
+            "Font size 64 ",
+            attrs.metrics(Metrics::relative(64.0, 1.2, 0.0)),
+        ),
+        (
+            "Font size 8 ",
+            attrs.metrics(Metrics::relative(8.0, 1.2, 0.0)),
+        ),
+        (
+            "Font size 20 ",
+            attrs.metrics(Metrics::relative(20.0, 1.2, 0.0)),
+        ),
+        (
+            "Font size 14 ",
+            attrs.metrics(Metrics::relative(14.0, 1.2, 0.0)),
+        ),
         (
             "Font size 48\n",
-            attrs.metrics(Metrics::relative(48.0, 1.2)),
+            attrs.metrics(Metrics::relative(48.0, 1.2, 0.0)),
         ),
         ("B", attrs.weight(Weight::BOLD)),
         ("old ", attrs),
@@ -117,7 +129,7 @@ fn main() {
     let mut swash_cache = SwashCache::new();
 
     let mut display_scale = window.scale_factor() as f32;
-    let metrics = Metrics::new(32.0, 44.0);
+    let metrics = Metrics::new(32.0, 44.0, 0.0);
     let mut editor = Editor::new(Buffer::new_empty(metrics.scale(display_scale)));
     let mut editor = editor.borrow_with(&mut font_system);
     editor.with_buffer_mut(|buffer| {
