@@ -131,7 +131,7 @@ impl<'b> Iterator for LayoutRunIter<'b> {
                 let line_y = line_top + centering_offset + layout_line.max_ascent;
 
                 if let Some(height) = self.buffer.height_opt {
-                    if line_top + layout_line.max_ascent > height {
+                    if line_top + layout_line.max_ascent > height && self.buffer.clip {
                         return None;
                     }
                 }
@@ -220,6 +220,7 @@ pub struct Buffer {
     wrap: Wrap,
     monospace_width: Option<f32>,
     tab_width: u16,
+    clip: bool,
 
     /// Scratch buffer for shaping and laying out.
     scratch: ShapeBuffer,
@@ -235,6 +236,7 @@ impl Clone for Buffer {
             scroll: self.scroll,
             redraw: self.redraw,
             wrap: self.wrap,
+            clip: self.clip,
             monospace_width: self.monospace_width,
             tab_width: self.tab_width,
             scratch: ShapeBuffer::default(),
@@ -264,6 +266,7 @@ impl Buffer {
             scroll: Scroll::default(),
             redraw: false,
             wrap: Wrap::WordOrGlyph,
+            clip: true,
             scratch: ShapeBuffer::default(),
             monospace_width: None,
             tab_width: 8,
@@ -577,6 +580,16 @@ impl Buffer {
             self.relayout(font_system);
             self.shape_until_scroll(font_system, false);
         }
+    }
+
+    /// Get the current `clip`
+    pub fn clip(&self) -> bool {
+        self.clip
+    }
+
+    /// Set the current `clip`
+    pub fn set_clip(&mut self, clip: bool) {
+        self.clip = clip;
     }
 
     /// Get the current `monospace_width`
