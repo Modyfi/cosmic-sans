@@ -493,6 +493,15 @@ impl Buffer {
         }
     }
 
+    /// Shape entire buffer. Disregarding scrolling and cursor position
+    pub fn shape_all(&mut self, font_system: &mut FontSystem) {
+        for line_i in 0..self.lines.len() {
+            let _ = self
+                .line_layout(font_system, line_i)
+                .expect("shape_all invalid line");
+        }
+    }
+
     /// Convert a [`Cursor`] to a [`LayoutCursor`]
     pub fn layout_cursor(
         &mut self,
