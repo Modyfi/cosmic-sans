@@ -1,5 +1,6 @@
 #[cfg(not(feature = "std"))]
 use alloc::{string::String, vec::Vec};
+use core::ops::Range;
 
 use crate::{
     Align, AttrsList, FontSystem, LayoutLine, LineEnding, ShapeBuffer, ShapeLine, Shaping, Wrap,
@@ -9,6 +10,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct BufferLine {
     text: String,
+    range: Range<usize>,
     ending: LineEnding,
     attrs_list: AttrsList,
     align: Option<Align>,
@@ -24,12 +26,14 @@ impl BufferLine {
     /// [`Self::layout`] functions
     pub fn new<T: Into<String>>(
         text: T,
+        range: Range<usize>,
         ending: LineEnding,
         attrs_list: AttrsList,
         shaping: Shaping,
     ) -> Self {
         Self {
             text: text.into(),
+            range,
             ending,
             attrs_list,
             align: None,
@@ -43,6 +47,10 @@ impl BufferLine {
     /// Get current text
     pub fn text(&self) -> &str {
         &self.text
+    }
+
+    pub fn text_range(&self) -> &Range<usize> {
+        &self.range
     }
 
     /// Set text and attributes list
@@ -155,11 +163,12 @@ impl BufferLine {
 
     /// Split off new line at index
     pub fn split_off(&mut self, index: usize) -> Self {
+        let split_off_range = index..self.text.len();
         let text = self.text.split_off(index);
         let attrs_list = self.attrs_list.split_off(index);
         self.reset();
 
-        let mut new = Self::new(text, self.ending, attrs_list, self.shaping);
+        let mut new = Self::new(text, split_off_range, self.ending, attrs_list, self.shaping);
         new.align = self.align;
         new
     }

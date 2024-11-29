@@ -378,6 +378,7 @@ impl<'buffer> Edit<'buffer> for Editor<'buffer> {
                     .unwrap_or_default();
                 let line = BufferLine::new(
                     String::new(),
+                    0..0,
                     ending,
                     AttrsList::new(attrs_list.as_ref().map_or_else(
                         || {
@@ -419,6 +420,7 @@ impl<'buffer> Edit<'buffer> for Editor<'buffer> {
                     data_line
                         .strip_suffix(char::is_control)
                         .unwrap_or(data_line),
+                    0..0,
                     ending,
                     these_attrs,
                     Shaping::Advanced,
@@ -432,6 +434,7 @@ impl<'buffer> Edit<'buffer> for Editor<'buffer> {
                     data_line
                         .strip_suffix(char::is_control)
                         .unwrap_or(data_line),
+                    0..0,
                     ending,
                     final_attrs.split_off(remaining_split_len),
                     Shaping::Advanced,
@@ -448,6 +451,7 @@ impl<'buffer> Edit<'buffer> for Editor<'buffer> {
                     data_line
                         .strip_suffix(char::is_control)
                         .unwrap_or(data_line),
+                    0..0,
                     ending,
                     final_attrs.split_off(remaining_split_len),
                     Shaping::Advanced,

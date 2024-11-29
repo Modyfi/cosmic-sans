@@ -2,7 +2,7 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::{string::String, vec::Vec};
-use core::{cmp, fmt};
+use core::{cmp, fmt, ops::Range};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -18,6 +18,8 @@ pub struct LayoutRun<'a> {
     pub line_i: usize,
     /// The original text line
     pub text: &'a str,
+    /// The text range in the original buffer string
+    pub text_range: Range<usize>,
     /// True if the original paragraph direction is RTL
     pub rtl: bool,
     /// The array of layout glyphs to draw
@@ -144,6 +146,7 @@ impl<'b> Iterator for LayoutRunIter<'b> {
                 return Some(LayoutRun {
                     line_i: self.line_i,
                     text: line.text(),
+                    text_range: line.text_range().clone(),
                     rtl: shape.rtl,
                     glyphs: &layout_line.glyphs,
                     line_y,
@@ -712,7 +715,8 @@ impl Buffer {
         self.lines.clear();
         for (range, ending) in LineIter::new(text) {
             self.lines.push(BufferLine::new(
-                &text[range],
+                &text[range.clone()],
+                range,
                 ending,
                 AttrsList::new(attrs),
                 shaping,
@@ -721,6 +725,7 @@ impl Buffer {
         if self.lines.is_empty() {
             self.lines.push(BufferLine::new(
                 "",
+                0..0,
                 LineEnding::default(),
                 AttrsList::new(attrs),
                 shaping,
@@ -784,11 +789,15 @@ impl Buffer {
         //TODO: set this based on information from spans
         let line_ending = LineEnding::default();
 
+        let mut total_start = 0;
+        let mut total_end = 0;
+
         loop {
             let (Some(line_range), Some((attrs, span_range))) = (&maybe_line, &maybe_span) else {
                 // this is reached only if this text is empty
                 self.lines.push(BufferLine::new(
                     String::new(),
+                    0..0,
                     line_ending,
                     AttrsList::new(default_attrs),
                     shaping,
@@ -798,8 +807,13 @@ impl Buffer {
 
             // start..end is the intersection of this line and this span
             let start = line_range.start.max(span_range.start);
+
             let end = line_range.end.min(span_range.end);
+
             if start < end {
+                total_start = total_start.min(start);
+                total_end = total_end.max(end);
+
                 let text = &string[start..end];
                 let text_start = line_string.len();
                 line_string.push_str(text);
@@ -824,13 +838,28 @@ impl Buffer {
                     let prev_attrs_list =
                         core::mem::replace(&mut attrs_list, AttrsList::new(default_attrs));
                     let prev_line_string = core::mem::take(&mut line_string);
-                    let buffer_line =
-                        BufferLine::new(prev_line_string, line_ending, prev_attrs_list, shaping);
+                    let buffer_line = BufferLine::new(
+                        prev_line_string,
+                        total_start..total_end,
+                        line_ending,
+                        prev_attrs_list,
+                        shaping,
+                    );
+
+                    // Reset the range counters
+                    total_start = maybe_line.as_ref().map_or(0, |l| l.start);
+                    total_end = maybe_line.as_ref().map_or(0, |l| l.start);
+
                     self.lines.push(buffer_line);
                 } else {
                     // finalize the final line
-                    let buffer_line =
-                        BufferLine::new(line_string, line_ending, attrs_list, shaping);
+                    let buffer_line = BufferLine::new(
+                        line_string,
+                        total_start..total_end,
+                        line_ending,
+                        attrs_list,
+                        shaping,
+                    );
                     self.lines.push(buffer_line);
                     break;
                 }
